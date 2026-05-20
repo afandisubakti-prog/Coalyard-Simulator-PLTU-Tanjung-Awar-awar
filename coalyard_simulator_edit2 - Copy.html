@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coal Yard Simulator v5.8 Stable</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{overflow:hidden;font-family:Arial,sans-serif;background:#1a1a1a;color:#fff;}
+#panel{position:absolute;top:10px;left:10px;width:245px;background:rgba(0,0,0,.90);padding:11px;border-radius:10px;z-index:100;max-height:calc(100vh - 20px);overflow-y:auto;}
+#panel h2{font-size:14px;margin-bottom:7px;}
+.st{font-size:10px;text-transform:uppercase;color:#aaa;margin:7px 0 3px;letter-spacing:.5px;}
+.cgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:5px;}
+.cbtn{width:100%;aspect-ratio:1;border-radius:4px;border:3px solid transparent;cursor:pointer;}
+.cbtn.active{border-color:#fff;}
+#colorLabel{width:100%;padding:4px 7px;background:#333;border:1px solid #555;border-radius:4px;color:#fff;font-size:12px;margin-bottom:5px;}
+.mrow{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:5px;}
+.mbtn{padding:6px 4px;border:2px solid #555;border-radius:5px;background:#222;color:#ccc;cursor:pointer;font-size:12px;text-align:center;}
+.mbtn.on{border-color:#4fc3f7;color:#4fc3f7;background:#0a1f2e;}
+.cr3{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-bottom:3px;}
+.cam{padding:5px 2px;border:1px solid #444;border-radius:4px;background:#222;color:#bbb;cursor:pointer;font-size:13px;text-align:center;user-select:none;}
+.cam:active{background:#333;}
+.abtn{width:100%;padding:6px;border:1px solid #555;border-radius:4px;background:#222;color:#ccc;cursor:pointer;font-size:12px;margin-bottom:4px;}
+.abtn:hover{background:#2e2e2e;}
+.abtn.red{border-color:#e57373;color:#e57373;}
+.abtn.blue{border-color:#4fc3f7;color:#4fc3f7;font-weight:bold;}
+#ibox{font-size:10px;color:#666;line-height:1.5;margin-top:5px;border-top:1px solid #333;padding-top:5px;}
+
+#legend{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.90);padding:9px;border-radius:8px;z-index:100;min-width:140px;max-height:calc(100vh - 20px);overflow-y:auto;}
+#legend h3{font-size:10px;color:#aaa;margin-bottom:5px;text-transform:uppercase;}
+.li{display:flex;align-items:center;gap:6px;margin-bottom:3px;font-size:11px;}
+.lc{width:13px;height:13px;border-radius:3px;flex-shrink:0;border:1px solid rgba(255,255,255,.2);}
+#statusbar{position:absolute;bottom:10px;left:260px;background:rgba(0,0,0,.75);padding:5px 11px;border-radius:5px;font-size:11px;color:#ddd;z-index:100;pointer-events:none;}
+
+/* STYLE POPUP MODAL TABEL KALORI */
+#calModal {display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:200;align-items:center;justify-content:center;}
+.modal-content {background:#222;padding:20px;border-radius:10px;width:95%;max-width:650px;max-height:85vh;overflow-y:auto;border:1px solid #444;box-shadow:0 5px 15px rgba(0,0,0,0.5);}
+.modal-header {display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #444;padding-bottom:10px;margin-bottom:15px;}
+.modal-header h3 {font-size:16px;color:#4fc3f7;}
+.close-btn {cursor:pointer;background:none;border:none;color:#aaa;font-size:20px;font-weight:bold;}
+.close-btn:hover {color:#fff;}
+.cal-table {width:100%;border-collapse:collapse;text-align:left;font-size:12px;margin-bottom:20px;}
+.cal-table th {background:#333;color:#4fc3f7;padding:6px;border:1px solid #444;}
+.cal-table td {padding:6px;border:1px solid #444;color:#ddd;}
+.cal-table tr:hover {background:rgba(255,255,255,0.05);}
+</style>
+</head>
+<body>
+
+<div id="panel">
+  <h2>🏭 Coal Yard Simulator</h2>
+  <div class="st">Warna / Jenis Batubara</div>
+  <div class="cgrid" id="cgrid"></div>
+  <input type="text" id="colorLabel" placeholder="Nama jenis batubara..."/>
+  <div class="st">Mode</div>
+  <div class="mrow">
+    <div class="mbtn on" id="btnAdd" onclick="setMode('add')">➕ Tambah</div>
+    <div class="mbtn" id="btnRem" onclick="setMode('remove')">🗑 Hapus</div>
+  </div>
+  <div class="st">Kamera</div>
+  <div class="cr3">
+    <div class="cam" onclick="camPan(0,-4)"></div>
+    <div class="cam" onclick="camPan(0,-4)">▲</div>
+    <div class="cam" onclick="camPan(0,-4)"></div>
+    <div class="cam" onclick="camPan(-4,0)">◀</div>
+    <div class="cam" onclick="resetCam()" title="Reset">↺</div>
+    <div class="cam" onclick="camPan(4,0)">▶</div>
+    <div class="cam" onclick="camPan(0,4)"></div>
+    <div class="cam" onclick="camPan(0,4)">▼</div>
+    <div class="cam" onclick="camPan(0,4)"></div>
+  </div>
+  <div class="cr3" style="margin-top:3px;margin-bottom:5px;">
+    <div class="cam" onclick="camZoom(-10)" style="font-size:11px;">🔍+</div>
+    <div class="cam" onclick="camTilt(-10)" style="font-size:11px;">⬆Tilt</div>
+    <div class="cam" onclick="camOrbit(-15)" style="font-size:11px;">↺Kiri</div>
+    <div class="cam" onclick="camZoom(10)" style="font-size:11px;">🔍−</div>
+    <div class="cam" onclick="camTilt(10)" style="font-size:11px;">⬇Tilt</div>
+    <div class="cam" onclick="camOrbit(15)" style="font-size:11px;">↻Kanan</div>
+  </div>
+  <div class="st">Layer</div>
+  <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;">
+    <span style="font-size:11px;color:#aaa;">Target:</span>
+    <input type="number" id="layerTarget" min="1" max="30" value="1"
+      style="width:44px;padding:3px 5px;background:#333;border:1px solid #555;border-radius:4px;color:#fff;font-size:12px;"/>
+    <label style="font-size:11px;color:#aaa;display:flex;align-items:center;gap:3px;cursor:pointer;">
+      <input type="checkbox" id="chkFill"/>Auto isi
+    </label>
+  </div>
+  <div class="st">Referensi Data</div>
+  <button class="abtn blue" onclick="toggleModal(true)">📋 Lihat Tabel Kalori</button>
+  
+  <div class="st">Aksi</div>
+  <button class="abtn" onclick="undoLast()">↩ Undo (Z)</button>
+  <button class="abtn red" onclick="clearAll()">🗑 Hapus Semua</button>
+  <div id="ibox">
+    Drag kiri=putar | Kanan=geser | Scroll=zoom<br>
+    WASD=geser | Q/E=putar | Z=undo | 1–9=warna<br>
+    <span style="color:#555;">1 unit = 2 meter</span>
+  </div>
+</div>
+
+<div id="legend"><h3>Legend</h3><div id="legItems"></div></div>
+<div id="statusbar">Arahkan kursor ke coalyard...</div>
+
+<div id="calModal">
+  <div class="modal-content">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #444; padding-bottom:5px;">
+      <h3 style="color:#4fc3f7; margin:0;">📋 Data Kalori Referensi</h3>
+      <button class="close-btn" onclick="toggleModal(false)">✕</button>
+    </div>
+    
+    <h4 style="color:#aaa; font-size:12px; margin-bottom:5px; text-transform:uppercase;">Data Shipper Batubara</h4>
+    <table class="cal-table">
+      <thead>
+        <tr><th>Shipper</th><th>Kode</th><th>Kalori</th><th>Kategori</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>PT. BUKIT ASAM</td><td><b>BA</b></td><td>4900+</td><td>MRC</td></tr>
+        <tr><td>PT. PLN BATUBARA NIAGA PBS</td><td><b>PBS</b></td><td>4655</td><td>MRC</td></tr>
+        <tr><td>PT. SINGLURUS PRATAMA</td><td><b>SGP</b></td><td>4615 - 4628</td><td>MRC</td></tr>
+        <tr><td>PT. ANUGERAH BUMINDO MINERGI PT</td><td><b>GEMURUH</b></td><td>4447 - 4462</td><td>MRC</td></tr>
+        <tr><td>PT. BATUBARA INDONESIA JAYA</td><td><b>BIJ</b></td><td>4410 - 4444</td><td>MRC</td></tr>
+        <tr><td>PT. LAUTAN HUTAN LESTARI</td><td><b>LUHUT</b></td><td>4160 - 4176</td><td>LRC</td></tr>
+        <tr><td>PT. PLN BATUBARA NIAGA BIB</td><td><b>BIB</b></td><td>4140</td><td>LRC</td></tr>
+        <tr><td>PT. EXPLOITASI ENERGI INDONESIA</td><td><b>EEI</b></td><td>4103 - 4157</td><td>LRC</td></tr>
+        <tr><td>PT. DWI GUNA LAKSANA</td><td><b>DGL</b></td><td>4103 - 4160</td><td>LRC</td></tr>
+        <tr><td>PT. INTI GARDA NUSANTARA PT. ABAP</td><td><b>INTI</b></td><td>4096 - 4113</td><td>LRC</td></tr>
+        <tr><td>PT. GLOBAL ENERGI LESTARI</td><td><b>GEL</b></td><td>3890 - 3894</td><td>LRC</td></tr>
+        <tr><td>PT. REKAMITRA CIPTA TAMBANG</td><td><b>RCT</b></td><td>4040 - 4098</td><td>LRC</td></tr>
+        <tr><td>PT. INDEXIM COALINDO</td><td><b>INDEXIM</b></td><td>3910 - 4050</td><td>LRC</td></tr>
+        <tr><td>PT. PLN BATUBARA NIAGA TJ</td><td><b>TJ</b></td><td>3915 - 3839</td><td>LRC</td></tr>
+        <tr><td>PT. PLN BATUBARA NIAGA (TIWA)</td><td><b>TIWA</b></td><td>3890 - 3894</td><td>LRC</td></tr>
+        <tr><td>PT. PLN BATUBARA NIAGA</td><td><b>BB NIAGA</b></td><td>3805 - 3914</td><td>LRC</td></tr>
+        <tr><td>PT. MADHUCON INDONESIA</td><td><b>MADHUCON</b></td><td>3890 - 3894</td><td>LRC</td></tr>
+        <tr><td>PT. GUNUNG TABUR MAS SUKSE</td><td><b>GTMS</b></td><td>-</td><td>MRC</td></tr>
+      </tbody>
+    </table>
+
+    <h4 style="color:#aaa; font-size:12px; margin-bottom:5px; text-transform:uppercase;">Data Jenis Biomassa</h4>
+    <table class="cal-table">
+      <thead>
+        <tr><th>Jenis</th><th>Kode</th><th>Kalori</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>SEKAM PADI</td><td><b>SEKAM</b></td><td>3200</td></tr>
+        <tr><td>SAWDUST</td><td><b>SAWDUST</b></td><td>3009 - 3129</td></tr>
+        <tr><td>BONGGOL JAGUNG</td><td><b>BG JAGUNG</b></td><td>-</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+var SP_G = 5.0;
+var SP_W = 160 / 13 / 2;   
+var XG1  = 169;
+var XG7  = XG1 - 6*SP_G;   // 139
+var XP1  = XG7 - SP_G;      
+var XP7  = XP1 - 6*SP_W;    
+var XP14 = XP1 - 13*SP_W;   
+
+var xMidA = (XG1 + XP7) / 2;   
+var xMidB = (XP7 + XP14) / 2;  
+var xMidC = XP14 / 2;           
+
+var ZCY1s=1,  ZCY1e=25;   
+var ZRD1s=26, ZRD1e=30;   
+var ZCY2s=31, ZCY2e=65;   
+var ZCY2m=48;              
+var ZRD2s=66, ZRD2e=70;   
+var ZCY3s=71, ZCY3e=95;   
+var ZTOT = 97, XTOT = 171;
+
+var zMidCY1  = (ZCY1s+ZCY1e)/2;   
+var zMidCY2u = (ZCY2s+ZCY2m)/2;   
+var zMidCY2d = (ZCY2m+ZCY2e)/2;   
+var zMidCY3  = (ZCY3s+ZCY3e)/2;   
+
+var AREAS=[
+  {name:'CY1', x1:0, x2:XTOT-1, z1:ZCY1s, z2:ZCY1e, col:0x1b3a22},
+  {name:'RD1', x1:0, x2:XTOT-1, z1:ZRD1s, z2:ZRD1e, col:0x444444},
+  {name:'CY2', x1:0, x2:XTOT-1, z1:ZCY2s, z2:ZCY2e, col:0x3a2510},
+  {name:'RD2', x1:0, x2:XTOT-1, z1:ZRD2s, z2:ZRD2e, col:0x444444},
+  {name:'CY3', x1:0, x2:XTOT-1, z1:ZCY3s, z2:ZCY3e, col:0x102538}
+];
+
+var COLORS=[
+  {h:'#111111',l:'BB Hitam'},{h:'#6d4c41',l:'BB Coklat'},{h:'#e53935',l:'BB Merah'},
+  {h:'#fb8c00',l:'BB Oranye'},{h:'#fdd835',l:'BB Kuning'},{h:'#43a047',l:'BB Hijau'},
+  {h:'#1e88e5',l:'BB Biru'},{h:'#8e24aa',l:'BB Ungu'},{h:'#78909c',l:'BB Abu'},
+  {h:'#e91e63',l:'BB Pink'},{h:'#00acc1',l:'BB Cyan'},{h:'#eeeeee',l:'BB Putih'}
+];
+var labelMap={};
+COLORS.forEach(function(c){labelMap[c.h]=c.l;});
+var selIdx=0;
+
+var scene,camera,renderer,controls,floorMesh;
+var cubes=[],histStack=[],mode='add';
+var RC=new THREE.Raycaster(), MV=new THREE.Vector2();
+
+function toggleModal(show) {
+  document.getElementById('calModal').style.display = show ? 'flex' : 'none';
+}
+
+function initColorGrid(){
+  var g=document.getElementById('cgrid');
+  COLORS.forEach(function(c,i){
+    var b=document.createElement('div');
+    b.className='cbtn'+(i===0?' active':'');
+    b.style.background=c.h; b.title=c.l;
+    (function(idx){b.onclick=function(){selectColor(idx);};})(i);
+    g.appendChild(b);
+  });
+  document.getElementById('colorLabel').value=COLORS[0].l;
+}
+function selectColor(i){
+  selIdx=i;
+  document.querySelectorAll('.cbtn').forEach(function(b,j){b.classList.toggle('active',j===i);});
+  document.getElementById('colorLabel').value=labelMap[COLORS[i].h]||COLORS[i].l;
+}
+document.getElementById('colorLabel').addEventListener('input',function(){
+  labelMap[COLORS[selIdx].h]=this.value; updateLegend();
+});
+
+function init3D(){
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x1a1a1a);
+
+  var CX=XTOT/2, CZ=ZTOT/2;
+  camera=new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 5000);
+  camera.position.set(XTOT+120, 140, CZ);
+
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  renderer.shadowMap.enabled=true;
+  renderer.domElement.style.cssText='position:absolute;top:0;left:0;z-index:1;';
+  document.body.appendChild(renderer.domElement);
+
+  controls=new THREE.OrbitControls(camera,renderer.domElement);
+  controls.target.set(CX,0,CZ);
+  controls.enableDamping=true;
+  controls.dampingFactor=0.07;
+  controls.screenSpacePanning=true;
+  controls.mouseButtons={LEFT:THREE.MOUSE.ROTATE,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:THREE.MOUSE.PAN};
+  controls.minDistance=10; controls.maxDistance=1000;
+  controls.maxPolarAngle=Math.PI/2.05;
+
+  scene.add(new THREE.AmbientLight(0xffffff,0.6));
+  var dl=new THREE.DirectionalLight(0xffffff,0.9);
+  dl.position.set(80,150,60); dl.castShadow=true; scene.add(dl);
+
+  floorMesh=new THREE.Mesh(
+    new THREE.PlaneGeometry(XTOT,ZTOT),
+    new THREE.MeshStandardMaterial({color:0x2e2e2e,side:THREE.DoubleSide})
+  );
+  floorMesh.rotation.x=-Math.PI/2;
+  floorMesh.position.set(XTOT/2,0,ZTOT/2);
+  floorMesh.receiveShadow=true;
+  scene.add(floorMesh);
+
+  var grid=new THREE.GridHelper(Math.max(XTOT,ZTOT)*1.05, Math.floor(Math.max(XTOT,ZTOT)/10)*10/10*10, 0x444444,0x2a2a2a);
+  grid.position.set(XTOT/2,0.01,ZTOT/2);
+  scene.add(grid);
+
+  buildAreas(); buildBorders(); buildPillars(); buildSubBoundaries(); buildLabels(); buildERH();
+  setupClickEvents();
+}
+
+function buildAreas(){
+  AREAS.forEach(function(a){
+    var w=a.x2-a.x1, d=a.z2-a.z1;
+    var m=new THREE.Mesh(
+      new THREE.BoxGeometry(w,0.08,d),
+      new THREE.MeshStandardMaterial({color:a.col})
+    );
+    m.position.set(a.x1+w/2, -0.04, a.z1+d/2);
+    scene.add(m);
+  });
+}
+
+function buildBorders(){
+  function ln(pts,col,op){
+    scene.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({color:col,opacity:op,transparent:op<1})
+    ));
+  }
+  ln([new THREE.Vector3(0,.1,0),new THREE.Vector3(XTOT,.1,0),
+      new THREE.Vector3(XTOT,.1,ZTOT),new THREE.Vector3(0,.1,ZTOT),
+      new THREE.Vector3(0,.1,0)], 0xffffff, 0.35);
+  AREAS.forEach(function(a){
+    if(!a.name.startsWith('CY')) return;
+    ln([new THREE.Vector3(a.x1,.12,a.z1),new THREE.Vector3(a.x2,.12,a.z1),
+        new THREE.Vector3(a.x2,.12,a.z2),new THREE.Vector3(a.x1,.12,a.z2),
+        new THREE.Vector3(a.x1,.12,a.z1)], 0x88ff88, 0.45);
+  });
+}
+
+function buildSubBoundaries(){
+  function vline(x,z1,z2,col){
+    var mat=new THREE.LineBasicMaterial({color:col,opacity:.65,transparent:true});
+    scene.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(x,.15,z1),new THREE.Vector3(x,.15,z2)
+      ]),mat
+    ));
+  }
+  [
+    {z1:ZCY1s,z2:ZCY1e},
+    {z1:ZCY2s,z2:ZCY2e},
+    {z1:ZCY3s,z2:ZCY3e}
+  ].forEach(function(r){
+    vline(XG7, r.z1, r.z2, 0xffff00);   
+    vline(XP7, r.z1, r.z2, 0xffff44);   
+    vline(XP14, r.z1, r.z2, 0xffff44);  
+  });
+  var mat2=new THREE.LineBasicMaterial({color:0xffaa00,opacity:.55,transparent:true});
+  scene.add(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0,.15,ZCY2m),new THREE.Vector3(XTOT,.15,ZCY2m)
+    ]),mat2
+  ));
+}
+
+function buildPillars(){
+  var PH=4.5;
+  var zN=ZCY1s-1, zS=ZCY3e+1;  
+
+  var geoG=new THREE.CylinderGeometry(0.3,0.35,PH,8);
+  var matG=new THREE.MeshStandardMaterial({color:0x888888});
+  for(var i=0;i<7;i++){
+    var xg_coord = XG1 - i*SP_G;
+    (function(xVal,idx){
+      [zN,zS].forEach(function(z){
+        var p=new THREE.Mesh(geoG,matG);
+        p.position.set(xVal,PH/2,z); p.castShadow=true; scene.add(p);
+        scene.add(makeSprite('P lama '+(idx+1), xVal, PH+1, z, '#6dd6ff', 16, 2.5));
+      });
+    })(xg_coord,i);
+  }
+
+  var geoW=new THREE.CylinderGeometry(0.5,0.6,PH,8);
+  var matW=new THREE.MeshStandardMaterial({color:0xdddddd});
+  for(var j=0;j<14;j++){
+    var xp_coord = XP1 - j*SP_W;
+    (function(xVal,idx){
+      [zN,zS].forEach(function(z){
+        var p=new THREE.Mesh(geoW,matW);
+        p.position.set(xVal,PH/2,z); p.castShadow=true; scene.add(p);
+        scene.add(makeSprite('P'+(idx+1), xVal, PH+1, z, '#ffd600', 36, 5.6)); 
+      });
+    })(xp_coord,j);
+  }
+}
+
+function buildERH(){
+  var x1=155, x2=159, z1=37, z2=41;
+  var w = (x2 - x1); 
+  var d = (z2 - z1); 
+  var h = 1.5; 
+  
+  var boxGeo = new THREE.BoxGeometry(w, h, d);
+  var boxMat = new THREE.MeshStandardMaterial({
+    color: 0xff0000,
+    transparent: true,
+    opacity: 0.35
+  });
+  var erhBox = new THREE.Mesh(boxGeo, boxMat);
+  erhBox.position.set(x1 + w/2, -h/2, z1 + d/2);
+  scene.add(erhBox);
+
+  var edges = new THREE.EdgesGeometry(boxGeo);
+  var lineMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 3 });
+  var wireframe = new THREE.LineSegments(edges, lineMat);
+  wireframe.position.copy(erhBox.position);
+  scene.add(wireframe);
+
+  var txtSprite = makeSprite("ERH", x1 + w/2, 1.0, z1 + d/2, '#ffff00', 32, 4);
+  scene.add(txtSprite);
+}
+
+function makeSprite(txt,x,y,z,color,fs,sw){
+  var fs2=fs||14, sw2=sw||2;
+  var cw=Math.max(240,fs2*txt.length*0.8), ch=fs2*3.0; 
+  var cv=document.createElement('canvas'); cv.width=cw; cv.height=ch;
+  var ctx=cv.getContext('2d');
+  ctx.fillStyle=color||'#fff'; ctx.font='bold '+fs2+'px Arial';
+  ctx.textAlign='center'; ctx.fillText(txt,cw/2,ch*.65);
+  var s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false}));
+  s.position.set(x,y,z); s.scale.set(sw2*cw/ch*0.7, sw2*0.7, 1); return s;
+}
+
+function makeSubAreaSprite(txt, x, y, z, col) {
+  var cv = document.createElement('canvas');
+  cv.width = 400; cv.height = 100;
+  var ctx = cv.getContext('2d');
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 56px Arial'; 
+  ctx.fillStyle = col || 'rgba(100,220,255,.95)';
+  ctx.fillText(txt, 200, 68);
+  
+  var s = new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv), depthTest:false, transparent:true, opacity:0.95}));
+  s.position.set(x, 1.2, z); 
+  s.scale.set(15, 15 * 100/400, 1);
+  return s;
+}
+
+function makeBiomassSprite(subLabel, x, y, z, sw) {
+  var cv = document.createElement('canvas');
+  cv.width = 650; cv.height = 180; 
+  var ctx = cv.getContext('2d');
+  ctx.textAlign = 'center';
+  
+  ctx.font = 'bold 56px Arial'; // Diubah menjadi ukuran CY1A (56px)
+  ctx.fillStyle = '#aaaaaa'; 
+  ctx.fillText('BIOMASSA', 325, 60);
+  
+  ctx.font = 'bold 56px Arial'; // Diubah menjadi ukuran CY1A (56px)
+  ctx.fillStyle = '#ffff00'; 
+  ctx.fillText(subLabel, 325, 130);
+  
+  var s = new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv), depthTest:false, transparent:true}));
+  s.position.set(x, 2.0, z);
+  s.scale.set(sw * 650/180, sw, 1);
+  return s;
+}
+
+/* FUNGSI KHUSUS UNTUK MENAMPILKAN DATA KODE TONGKANG & KALORI */
+function makeBargeSprite(lines, x, z) {
+  var lns = lines.split('\n'), nh = lns.length;
+  var cv = document.createElement('canvas');
+  cv.width = 600; 
+  cv.height = 70 * nh;
+  var ctx = cv.getContext('2d');
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 52px Arial'; 
+  ctx.fillStyle = '#ffff00';     
+  lns.forEach(function(l, i) {
+    ctx.fillText(l, 300, 55 + i * 65);
+  });
+  var s = new THREE.Sprite(new THREE.SpriteMaterial({map: new THREE.CanvasTexture(cv), depthTest: false, transparent: true}));
+  s.position.set(x, 1.3, z);
+  s.scale.set(cv.width / 45, cv.height / 45, 1); 
+  scene.add(s);
+}
+
+/* FUNGSI LABEL SISTEM UMUM */
+function makeSystemLabel(lines, x, z, sc, color) {
+  var lns=lines.split('\n'), nh=lns.length;
+  var cv=document.createElement('canvas'); cv.width=512; cv.height=70*nh; 
+  var ctx=cv.getContext('2d');
+  ctx.font='bold 22px Arial'; ctx.textAlign='center';
+  ctx.fillStyle=color||'rgba(255,255,255,.9)';
+  lns.forEach(function(l,i){ctx.fillText(l,256,40+i*35);}); 
+  var s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthTest:false}));
+  s.position.set(x,.5,z); s.scale.set(sc||12,(sc||12)*nh*.32,1);
+  scene.add(s);
+}
+
+function buildLabels(){
+  var xSawdustCenter = (139 + 170) / 2; // = 154.5
+  var zMidCY2Total = (ZCY2s + ZCY2e) / 2; // = 48
+
+  // ===== COALYARD 1 =====
+  scene.add(makeSubAreaSprite('CY1A', xMidA, 1.2, zMidCY1, 'rgba(100,220,255,.95)'));
+  scene.add(makeSubAreaSprite('CY1B', xMidB, 1.2, zMidCY1, 'rgba(100,220,255,.95)'));
+  scene.add(makeSubAreaSprite('CY1C', xMidC, 1.2, zMidCY1, 'rgba(100,220,255,.95)'));
+
+  scene.add(makeBiomassSprite('SEKAM PADI', xSawdustCenter, 2.5, zMidCY1, 4.0)); 
+
+  // CY1A -> Kiri (-14) | LRC GRADE 1 (4100-4200)
+  makeBargeSprite('LUHUT\n4160 - 4176\n\nBIB\n4140\n\nEEI\n4103 - 4157', xMidA - 14, zMidCY1);
+  // CY1B -> Kanan (+14) | LRC GRADE 1 or 2 (3800-4100)
+  makeBargeSprite('INDEXIM\n3910 - 4050\n\nTJ\n3915 - 3839', xMidB + 14, zMidCY1);
+  // CY1C -> Kanan (+14) | LRC GRADE 2 (<4000)
+  makeBargeSprite('BB NIAGA\n3805 - 3914', xMidC + 14, zMidCY1);
+
+
+  // ===== COALYARD 2 =====
+  scene.add(makeSubAreaSprite('CY2A', xMidA, 1.2, zMidCY2u, 'rgba(100,220,255,.95)')); // Warna Biru
+  scene.add(makeSubAreaSprite('CY2B', xMidB, 1.2, zMidCY2u, 'rgba(100,220,255,.95)')); // Warna Biru
+  scene.add(makeSubAreaSprite('CY2C', xMidC, 1.2, zMidCY2u, 'rgba(100,220,255,.95)')); // Warna Biru
+
+  scene.add(makeBiomassSprite('SAWDUST', xSawdustCenter, 2.5, zMidCY2Total, 4.0)); 
+
+  // CY2A -> Kiri (-14) | MRC KERING
+  makeBargeSprite('BA\n4900+', xMidA - 14, zMidCY2u);
+  // CY2B -> Kanan (+14) | MRC SETELAH TREATMENT
+  makeBargeSprite('SGP\n4615 - 4628', xMidB + 14, zMidCY2u);
+  // CY2C -> Kanan (+14) | MRC TREATMENT
+  makeBargeSprite('BIJ\n4410 - 4444', xMidC + 14, zMidCY2u);
+
+  scene.add(makeSubAreaSprite('CY2D', xMidA, 1.2, zMidCY2d, 'rgba(100,220,255,.95)')); // Warna Biru
+  scene.add(makeSubAreaSprite('CY2E', xMidB, 1.2, zMidCY2d, 'rgba(100,220,255,.95)')); // Warna Biru
+  scene.add(makeSubAreaSprite('CY2F', xMidC, 1.2, zMidCY2d, 'rgba(100,220,255,.95)')); // Warna Biru
+
+  // CY2D -> Kiri (-14) | MRC KERING
+  makeBargeSprite('PBS\n4655', xMidA - 14, zMidCY2d);
+  // CY2E -> Kanan (+14) | MRC SETELAH TREATMENT
+  makeBargeSprite('GEMURUH\n4447 - 4462', xMidB + 14, zMidCY2d);
+  // CY2F -> Kanan (+14) | MRC TREATMENT
+  makeBargeSprite('GTMS\n-', xMidC + 14, zMidCY2d);
+
+
+  // ===== COALYARD 3 =====
+  scene.add(makeSubAreaSprite('CY3A', xMidA, 1.2, zMidCY3, 'rgba(100,180,255,.95)'));
+  scene.add(makeSubAreaSprite('CY3B', xMidB, 1.2, zMidCY3, 'rgba(100,180,255,.95)'));
+  scene.add(makeSubAreaSprite('CY3C', xMidC, 1.2, zMidCY3, 'rgba(100,180,255,.95)'));
+
+  scene.add(makeBiomassSprite('BONGGOL JAGUNG', xSawdustCenter, 2.5, zMidCY3, 4.0)); 
+  
+  // CY3A -> Kiri (-14) | LRC GRADE 1 (4000-4100)
+  makeBargeSprite('DGL\n4103 - 4160\n\nINTI\n4096 - 4113\n\nRCT\n4040 - 4098', xMidA - 14, zMidCY3);
+  // CY3B -> Kanan (+14) | LRC GRADE 1 or 2 (3800-4000)
+  makeBargeSprite('GEL\n3890 - 3894\n\nTIWA\n3890 - 3894', xMidB + 14, zMidCY3);
+  // CY3C -> Kanan (+14) | LRC GRADE 2 (<4000)
+  makeBargeSprite('MADHUCON\n3890 - 3894', xMidC + 14, zMidCY3);
+
+  // MATA ANGIN BERSIH MURNI HURUF
+  function dir(t,x,z){
+    var cv=document.createElement('canvas'); cv.width=512; cv.height=100;
+    var ctx=cv.getContext('2d');
+    ctx.font='bold 44px Arial'; ctx.textAlign='center'; 
+    ctx.fillStyle='rgba(255,220,40,.95)'; ctx.fillText(t,256,60);
+    var s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),opacity:.9,transparent:true,depthTest:false}));
+    s.position.set(x,1.5,z); s.scale.set(20, 20*100/512, 1); scene.add(s);
+  }
+  dir('BARAT', -25, ZTOT/2);       
+  dir('TIMUR', XTOT+25, ZTOT/2);   
+  dir('UTARA', XTOT/2, -20);       
+  dir('SELATAN', XTOT/2, ZTOT+20); 
+
+  makeSystemLabel('◄── 50m ──►', XG7-SP_G/2, ZCY1s-4, 7, 'rgba(255,255,255,0.7)');
+
+  // JUDUL RAKSASA DI BARAT (JAUH MELEWATI TULISAN 'BARAT')
+  function titleDir(t,x,z){
+    var cv=document.createElement('canvas'); cv.width=1600; cv.height=150;
+    var ctx=cv.getContext('2d');
+    ctx.font='bold 72px Arial'; ctx.textAlign='center';
+    ctx.fillStyle='rgba(255,255,255,.95)'; ctx.fillText(t,800,100);
+    var s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),opacity:1,transparent:true,depthTest:false}));
+    s.position.set(x,5.0,z); s.scale.set(80, 80*150/1600, 1); scene.add(s);
+  }
+  titleDir('COALYARD PLTU TANJUNG AWAR AWAR', -100, ZTOT/2);
+}
+
+function isZoneRestricted(x, z){
+  function checkCYBounds(zStart, zEnd) {
+    if (z >= zStart && z <= zEnd) {
+      if (z < (zStart + 3) || z > (zEnd - 3)) return true;
+      if (x > (XTOT - 1 - 3)) return true;
+      if (x < 10) return true;
+    }
+    return false;
+  }
+  if (checkCYBounds(ZCY1s, ZCY1e)) return true;
+  if (checkCYBounds(ZCY2s, ZCY2e)) return true;
+  if (checkCYBounds(ZCY3s, ZCY3e)) return true;
+  return false;
+}
+
+function getCY(x,z){
+  for(var i=0; i<AREAS.length; i++){
+    var a=AREAS[i];
+    if(a.name.startsWith('CY')&&x>=a.x1&&x<=a.x2&&z>=a.z1&&z<=a.z2) return a.name;
+  }
+  return null;
+}
+function getTopY(x,z){
+  var max=0;
+  for(var i=0; i<cubes.length; i++){
+    var c=cubes[i];
+    if(Math.round(c.position.x)===x&&Math.round(c.position.z)===z&&c.position.y>max) max=c.position.y;
+  }
+  return max;
+}
+function checkBlockExists(x,y,z){
+  for(var i=0; i<cubes.length; i++){
+    var c=cubes[i];
+    if(Math.round(c.position.x)===x && Math.round(c.position.y)===y && Math.round(c.position.z)===z) return true;
+  }
+  return false;
+}
+function makeBlock(x,z,y,hex){
+  var m=new THREE.Mesh(
+    new THREE.BoxGeometry(1,1,1),
+    new THREE.MeshStandardMaterial({color:new THREE.Color(hex)})
+  );
+  m.position.set(x,y,z); m.castShadow=true;
+  scene.add(m); cubes.push(m); return m;
+}
+
+function setupClickEvents(){
+  var canvas=renderer.domElement;
+  var sx=0,sy=0,moved=false,painting=false,painted={};
+
+  function hits(e){
+    var r=canvas.getBoundingClientRect();
+    MV.set(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1);
+    RC.setFromCamera(MV,camera);
+    return RC.intersectObjects([floorMesh].concat(cubes),false);
+  }
+  function onCY(e){
+    var h=hits(e); if(!h.length) return false;
+    var hit=h[0];
+    if(hit.object===floorMesh) return !!getCY(Math.round(hit.point.x),Math.round(hit.point.z));
+    return cubes.indexOf(hit.object)>=0;
+  }
+
+  canvas.addEventListener('pointerdown',function(e){
+    if(e.button!==0) return;
+    sx=e.clientX; sy=e.clientY; moved=false; painting=false; painted={};
+  },false);
+
+  canvas.addEventListener('pointermove',function(e){
+    if(e.buttons===1){
+      var dx=e.clientX-sx,dy=e.clientY-sy;
+      if(!moved&&Math.sqrt(dx*dx+dy*dy)>5){
+        moved=true;
+        if(onCY({clientX:sx,clientY:sy})){ painting=true; controls.enabled=false; }
+      }
+      if(painting) doPaint(e,painted,hits);
+    }
+    doHover(e,hits);
+  },false);
+
+  canvas.addEventListener('pointerup',function(e){
+    if(e.button!==0) return;
+    if(painting){ controls.enabled=true; painting=false; painted={}; }
+    else if(!moved) doPlace(e,hits);
+  },false);
+
+  canvas.addEventListener('pointerleave',function(){
+    if(painting){ controls.enabled=true; painting=false; painted={}; }
+  },false);
+}
+
+function doPlace(e,hits){
+  var h=hits(e); if(!h.length) return;
+  var hit=h[0];
+  var sb=document.getElementById('statusbar');
+  var fill=document.getElementById('chkFill').checked;
+  var tl=parseInt(document.getElementById('layerTarget').value)||1;
+
+  var x, z;
+  if(hit.object===floorMesh){
+    x=Math.round(hit.point.x); z=Math.round(hit.point.z);
+  } else {
+    x=Math.round(hit.object.position.x); z=Math.round(hit.object.position.z);
+  }
+
+  if(mode==='add'){
+    if(!getCY(x,z)){sb.textContent='Klik di area coalyard';return;}
+    if(isZoneRestricted(x, z)){sb.textContent='Zona Terlarang (Batas Tepi/Barat)!';return;}
+
+    if(fill){
+      var added=[]; var s0=getTopY(x,z)+1;
+      for(var ly=s0;ly<=tl;ly++) added.push(makeBlock(x,z,ly,COLORS[selIdx].h));
+      if(added.length){histStack.push({type:'multi',list:added});updateLegend();}
+      sb.textContent='Tambah '+added.length+' block ('+x+','+z+')';
+    } else {
+      if(checkBlockExists(x, tl, z)){sb.textContent='Layer '+tl+' sudah terisi!'; return;}
+      histStack.push({type:'single',cube:makeBlock(x,z,tl,COLORS[selIdx].h)});
+      updateLegend(); sb.textContent='Block ('+x+','+z+') L'+tl;
+    }
+  } else {
+    if(hit.object===floorMesh){sb.textContent='Klik block untuk hapus';return;}
+    var pos=hit.object.position.clone(), col='#'+hit.object.material.color.getHexString();
+    scene.remove(hit.object); cubes=cubes.filter(function(c){return c!==hit.object;});
+    histStack.push({type:'del',pos:pos,col:col}); updateLegend();
+    sb.textContent='Block dihapus';
+  }
+}
+
+function doPaint(e,painted,hits){
+  var h=hits(e); if(!h.length) return;
+  var hit=h[0];
+  var fill=document.getElementById('chkFill').checked;
+  var tl=parseInt(document.getElementById('layerTarget').value)||1;
+
+  var x, z;
+  if(hit.object===floorMesh){
+    x=Math.round(hit.point.x); z=Math.round(hit.point.z);
+  } else {
+    x=Math.round(hit.object.position.x); z=Math.round(hit.object.position.z);
+  }
+
+  if(mode==='add'){
+    if(!getCY(x,z) || isZoneRestricted(x, z)) return;
+    if(fill){
+      var s0=getTopY(x,z)+1, added=[];
+      for(var ly=s0;ly<=tl;ly++){var k=x+':'+z+':'+ly; if(!painted[k]){painted[k]=1;added.push(makeBlock(x,z,ly,COLORS[selIdx].h));}}
+      if(added.length){histStack.push({type:'multi',list:added});updateLegend();}
+    } else {
+      var key=x+':'+z+':'+tl; if(painted[key] || checkBlockExists(x, tl, z)) return; painted[key]=1;
+      histStack.push({type:'single',cube:makeBlock(x,z,tl,COLORS[selIdx].h)}); updateLegend();
+    }
+  } else {
+    if(hit.object===floorMesh) return;
+    var uid=hit.object.uuid; if(painted[uid]) return; painted[uid]=1;
+    var pos=hit.object.position.clone(), col='#'+hit.object.material.color.getHexString();
+    scene.remove(hit.object); cubes=cubes.filter(function(c){return c!==hit.object;});
+    histStack.push({type:'del',pos:pos,col:col}); updateLegend();
+  }
+}
+
+function doHover(e,hits){
+  var h=hits(e);
+  var sb=document.getElementById('statusbar');
+  if(!h.length){sb.textContent='—';return;}
+  var hit=h[0];
+  if(hit.object===floorMesh){
+    var x=Math.round(hit.point.x), z=Math.round(hit.point.z);
+    var cy=getCY(x,z);
+    if(!cy){sb.textContent='Di luar coalyard';return;}
+    var sub=getSubName(x,z);
+    var rest = isZoneRestricted(x, z) ? ' [ZONA TERLARANG]' : '';
+    sb.textContent=cy+sub+rest+' | X:'+x+' Z:'+z+' (≈'+Math.round(x*2)+'m,'+Math.round(z*2)+'m) | Top:'+getTopY(x,z);
+  } else {
+    var hx='#'+hit.object.material.color.getHexString();
+    sb.textContent='X:'+Math.round(hit.object.position.x)+' Z:'+Math.round(hit.object.position.z)+
+      ' L:'+hit.object.position.y+' | '+(labelMap[hx]||hx);
+  }
+}
+
+function getSubName(x,z){
+  var letter='';
+  if(x>XP7) letter='A';
+  else if(x>XP14) letter='B';
+  else letter='C';
+
+  var cy='';
+  if(z>=ZCY1s&&z<=ZCY1e) cy='CY1';
+  else if(z>=ZCY2s&&z<=ZCY2m) cy='CY2';
+  else if(z>ZCY2m&&z<=ZCY2e) cy='CY2';
+  else if(z>=ZCY3s&&z<=ZCY3e) cy='CY3';
+  return letter ? cy+letter : '';
+}
+
+function setMode(m){
+  mode=m;
+  document.getElementById('btnAdd').classList.toggle('on',m==='add');
+  document.getElementById('btnRem').classList.toggle('on',m==='remove');
+}
+function undoLast(){
+  if(!histStack.length) return;
+  var last=histStack.pop();
+  if(last.type==='single'){scene.remove(last.cube);cubes=cubes.filter(function(c){return c!==last.cube;});}
+  else if(last.type==='multi'){last.list.forEach(function(c){scene.remove(c);cubes=cubes.filter(function(x){return x!==c;});});}
+  else if(last.type==='del'){histStack.push({type:'single',cube:makeBlock(last.pos.x,last.pos.z,last.pos.y,last.col)});}
+  updateLegend();
+}
+function clearAll(){
+  if(!confirm('Hapus semua block?')) return;
+  cubes.forEach(function(c){scene.remove(c);}); cubes=[];histStack=[];updateLegend();
+}
+function updateLegend(){
+  var used={};
+  cubes.forEach(function(c){var h='#'+c.material.color.getHexString();used[h]=(used[h]||0)+1;});
+  var div=document.getElementById('legItems'); div.innerHTML='';
+  Object.keys(used).forEach(function(h){
+    var item=document.createElement('div'); item.className='li';
+    item.innerHTML='<div class="lc" style="background:'+h+'"></div><span style="flex:1">'+(labelMap[h]||h)+'</span><span style="color:#aaa;font-size:10px">'+used[h]+'</span>';
+    div.appendChild(item);
+  });
+}
+
+function camPan(dx,dz){var v=new THREE.Vector3(dx,0,dz);controls.target.add(v);camera.position.add(v);controls.update();}
+function camZoom(d){var dir=new THREE.Vector3();camera.getWorldDirection(dir);camera.position.addScaledVector(dir,-d);controls.update();}
+function camTilt(deg){
+  var r=deg*Math.PI/180,off=camera.position.clone().sub(controls.target);
+  var phi=Math.atan2(Math.sqrt(off.x*off.x+off.z*off.z),off.y);
+  var np=Math.max(0.05,Math.min(Math.PI/2.02,phi+r));
+  var len=off.length(),th=Math.atan2(off.z,off.x);
+  camera.position.set(controls.target.x+len*Math.sin(np)*Math.cos(th),controls.target.y+len*Math.cos(np),controls.target.z+len*Math.sin(np)*Math.sin(th));
+  controls.update();
+}
+function camOrbit(deg){
+  var r=deg*Math.PI/180,off=camera.position.clone().sub(controls.target);
+  var len=Math.sqrt(off.x*off.x+off.z*off.z),th=Math.atan2(off.z,off.x)+r;
+  camera.position.x=controls.target.x+len*Math.cos(th);
+  camera.position.z=controls.target.z+len*Math.sin(th);
+  controls.update();
+}
+function resetCam(){
+  camera.position.set(XTOT+120,140,ZTOT/2);
+  controls.target.set(XTOT/2,0,ZTOT/2);
+  controls.update();
+}
+
+var keys={};
+window.addEventListener('keydown',function(e){
+  if(e.target.tagName==='INPUT') return;
+  keys[e.key]=true;
+  if(e.key==='z'||e.key==='Z') undoLast();
+  if(e.key>='1'&&e.key<='9') selectColor(parseInt(e.key)-1);
+});
+window.addEventListener('keyup',function(e){delete keys[e.key];});
+function handleKeys(){
+  if(document.activeElement&&document.activeElement.tagName==='INPUT') return;
+  var s=0.8;
+  if(keys['w']||keys['W']||keys['ArrowUp'])    camPan(-s,0);
+  if(keys['s']||keys['S']||keys['ArrowDown'])  camPan(s,0);
+  if(keys['a']||keys['A']||keys['ArrowLeft'])  camPan(0,s);
+  if(keys['d']||keys['D']||keys['ArrowRight']) camPan(0,-s);
+  if(keys['q']||keys['Q']) camOrbit(-1.5);
+  if(keys['e']||keys['E']) camOrbit(1.5);
+}
+
+window.addEventListener('resize',function(){
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+});
+
+function animate(){requestAnimationFrame(animate);handleKeys();controls.update();renderer.render(scene,camera);}
+
+initColorGrid(); init3D(); animate();
+</script>
+</body>
+</html>
